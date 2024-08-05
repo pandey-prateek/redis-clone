@@ -36,7 +36,7 @@ static int32_t query(int fd,const char* text){
         return err;
     }
     rbuf[4+len]='\0';
-    printf("server says: %s\n",&rbuf[4]);
+    std::cout<<"server says: "<<(&rbuf[4])<<std::endl;
     return 0;
 }
 
