@@ -1,22 +1,45 @@
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/ip.h>
-#include <string>
-#include <iostream>
+#include "headers.h"
+#include "banner.cpp"
+#include "streamoperations.cpp"
 
-static void die(std::string s){
-    std::cerr << s;
-    abort();
+
+static int32_t query(int fd,const char* text){
+    uint32_t len=(uint32_t)strlen(text);
+    if(len > k_max_msg)
+        return -1;
+    char wbuf[4+k_max_msg];
+    memcpy(wbuf,&len,4);
+    memcpy(&wbuf[4],text,len);
+
+    if(int32_t err=write_all(fd,wbuf,4+len)){
+        return err;
+    }
+
+    char rbuf[4+k_max_msg+1];
+    errno=0;
+    int32_t err=read_full(fd,rbuf,4);
+    if(err){
+        if(!errno)
+            msg("EOF");
+        else
+            msg("read() error");
+        return err;
+    }
+    memcpy(&len,rbuf,4);
+    if(len>k_max_msg){
+        msg("too long");
+        return -1;
+    }
+    err=read_full(fd,&rbuf[4],len);
+    if (err) {
+        msg("read() error");
+        return err;
+    }
+    rbuf[4+len]='\0';
+    printf("server says: %s\n",&rbuf[4]);
+    return 0;
 }
-static void msg(std::string s){
-    std::cout << s;
-}
+
 int main(int argc, char const *argv[])
 {
     /* code */
@@ -31,12 +54,18 @@ int main(int argc, char const *argv[])
     int rv=connect(fd,(const struct sockaddr*)&add,sizeof(add));
     if(rv)
         die("connect");
-    std::string msg="hello";
-    write(fd,msg.c_str(),msg.size());
-    char recv_buf[64]={};
-    ssize_t n=read(fd,recv_buf,sizeof(recv_buf)-1);
-    if(n<0)
-        die("read");
-    std::cout<<"Server says "<<recv_buf<<std::endl;
-    close(fd);
+
+
+    int32_t err=query(fd,"hello1");
+    if (err) {
+        goto L_DONE;
+    }
+    err=query(fd,"hello2");
+    if (err) {
+        goto L_DONE;
+    }
+    
+    L_DONE:
+        close(fd);
+        return 0;
 }

@@ -1,22 +1,44 @@
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/ip.h>
-#include <string>
-#include <iostream>
+#include "headers.h"
+#include "banner.cpp"
+#include "streamoperations.cpp"
 
-static void die(std::string s){
-    std::cerr << s;
-    abort();
+
+static int32_t one_request(int connfd){
+    char rbuf[4+k_max_msg+1];
+    errno=0;
+    int32_t err=read_full(connfd,rbuf,4);
+    if(err){
+        if(!errno)
+            msg("EOF");
+        else
+            msg("read() error");
+        return err;
+    }
+    uint32_t len=0;
+    memcpy(&len,rbuf,4);
+    if(len > k_max_msg){
+        msg("too long");
+        return -1;
+    }
+    err=read_full(connfd,&rbuf[4],len);
+    if(err){
+        msg("read() error");
+        return err;
+    }
+    rbuf[4+len]='\0';
+    std::cout<<"client says: "<<rbuf<<std::endl;
+
+
+    const char reply[]="somthing somthing";
+
+    char wbuf[4+sizeof(reply)];
+    len=(uint32_t)strlen(reply);
+    memcpy(wbuf,&len,4);
+    memcpy(&wbuf[4],&reply,len);
+    return write_all(connfd,wbuf,4+len);
+    
 }
-static void msg(std::string s){
-    std::cout << s;
-}
+
 static void do_somthing(int connfd){
     char rbuf[64]={};
     ssize_t n=read(connfd,rbuf,sizeof(rbuf)-1);
@@ -28,6 +50,7 @@ static void do_somthing(int connfd){
     std::string wbuf="world";
     write(connfd,wbuf.c_str(),wbuf.size());
 }
+
 
 int main(int argc, char const *argv[])
 {
@@ -55,7 +78,7 @@ int main(int argc, char const *argv[])
         if(connfd<0)
             continue;
         while(true){
-            int32_t err=do_somthing(connfd);
+            int32_t err=one_request(connfd);
             if(err)
                 break;
         }
