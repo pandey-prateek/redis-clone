@@ -1,7 +1,7 @@
 #include "headers.h"
 #include "banner.cpp"
 #include "streamoperations.cpp"
-
+#include "constants.h"
 
 static int32_t one_request(int connfd){
     char rbuf[4+k_max_msg+1];
@@ -38,6 +38,22 @@ static int32_t one_request(int connfd){
     return write_all(connfd,wbuf,4+len);
     
 }
+static void fd_set_nb(int fd){
+    errno=0;
+    int flags=fcntl(fd,F_GETFL,0);
+    if(errno){
+        die("fcntl error");
+        return;
+    }
+    flags |= O_NONBLOCK;
+    errno=0;
+    (void)fcntl(fd,F_SETFL,flags);
+    if(errno){
+        die("fcntl error");
+    }
+}
+
+
 
 static void do_somthing(int connfd){
     char rbuf[64]={};

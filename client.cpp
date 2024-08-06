@@ -1,7 +1,7 @@
 #include "headers.h"
 #include "banner.cpp"
 #include "streamoperations.cpp"
-
+#include "constants.h"
 
 static int32_t query(int fd,const char* text){
     uint32_t len=(uint32_t)strlen(text);
