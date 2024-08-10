@@ -1,7 +1,7 @@
 #ifndef DEFINITIONS
 #define DEFINITIONS
 #include "headers.h"
-#include "constants.h"
+const size_t k_max_msg=4096;
 enum {
     STATE_REQ=0,
     STATE_RES=1,

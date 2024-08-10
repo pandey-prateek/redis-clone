@@ -1,43 +1,41 @@
 #include "headers.h"
 #include "banner.cpp"
 #include "streamoperations.cpp"
-#include "constants.h"
-
-static int32_t one_request(int connfd){
-    char rbuf[4+k_max_msg+1];
-    errno=0;
-    int32_t err=read_full(connfd,rbuf,4);
-    if(err){
-        if(!errno)
-            msg("EOF");
-        else
-            msg("read() error");
-        return err;
-    }
-    uint32_t len=0;
-    memcpy(&len,rbuf,4);
-    if(len > k_max_msg){
-        msg("too long");
-        return -1;
-    }
-    err=read_full(connfd,&rbuf[4],len);
-    if(err){
-        msg("read() error");
-        return err;
-    }
-    rbuf[4+len]='\0';
-    std::cout<<"client says: "<<rbuf<<std::endl;
+// static int32_t one_request(int connfd){
+//     char rbuf[4+k_max_msg+1];
+//     errno=0;
+//     int32_t err=read_full(connfd,rbuf,4);
+//     if(err){
+//         if(!errno)
+//             msg("EOF");
+//         else
+//             msg("read() error");
+//         return err;
+//     }
+//     uint32_t len=0;
+//     memcpy(&len,rbuf,4);
+//     if(len > k_max_msg){
+//         msg("too long");
+//         return -1;
+//     }
+//     err=read_full(connfd,&rbuf[4],len);
+//     if(err){
+//         msg("read() error");
+//         return err;
+//     }
+//     rbuf[4+len]='\0';
+//     std::cout<<"client says: "<<rbuf<<std::endl;
 
 
-    const char reply[]="somthing somthing";
+//     const char reply[]="somthing somthing";
 
-    char wbuf[4+sizeof(reply)];
-    len=(uint32_t)strlen(reply);
-    memcpy(wbuf,&len,4);
-    memcpy(&wbuf[4],&reply,len);
-    return write_all(connfd,wbuf,4+len);
+//     char wbuf[4+sizeof(reply)];
+//     len=(uint32_t)strlen(reply);
+//     memcpy(wbuf,&len,4);
+//     memcpy(&wbuf[4],&reply,len);
+//     return write_all(connfd,wbuf,4+len);
     
-}
+// }
 static void fd_set_nb(int fd){
     errno=0;
     int flags=fcntl(fd,F_GETFL,0);
@@ -176,11 +174,11 @@ static bool try_fill_buffer(Conn* conn){
     }
     conn->rbuf_size+=(size_t)rv;
     assert(conn->rbuf_size<=sizeof(conn->rbuf) - conn->rbuf_size);
-    //while(try_one_request());
+    while(try_one_request(conn));
     return conn->state == STATE_REQ;
 }
 static void state_req(Conn* conn){
-    while(try_one_request(conn));
+    while(try_fill_buffer(conn));
 }
 static void connection_io(Conn* conn){
     if(conn->state==STATE_REQ)
@@ -233,7 +231,7 @@ int main(int argc, char const *argv[])
         for(size_t i=1;i<pollargs.size();i++){
             if(pollargs[i].revents){
                 Conn* conn=fd2conn[pollargs[i].fd];
-                //connection_io(conn);
+                connection_io(conn);
                 if(conn->state ==STATE_END){
                     fd2conn[conn->fd] =NULL;
                     (void)close(conn->fd);
@@ -242,7 +240,7 @@ int main(int argc, char const *argv[])
             }
         }
         if(pollargs[0].revents){
-            //(void)accept_new_conn(fd2conn.fd);
+            (void)accept_new_conn(fd2conn,fd);
         }
         
     }

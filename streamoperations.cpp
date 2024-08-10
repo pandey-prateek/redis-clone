@@ -1,5 +1,4 @@
 #include "headers.h"
-
 static int32_t read_full(int fd,char* buf,size_t n){
     while(n>0){
         ssize_t rv = read(fd,buf,n);
