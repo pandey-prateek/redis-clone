@@ -209,28 +209,38 @@ int main(int argc, char const *argv[])
         die("listen()");
     std::vector<Conn *> fd2conn;
     fd_set_nb(fd);
-    std::vector<struct pollfd> pollargs;
+    
+    std::vector<epoll_event> epev;;
     while(true){
-        pollargs.clear();
-        struct pollfd pfd={fd,POLLIN,0};
-
-        pollargs.push_back(pfd);
-
+        epev.clear();
+            int epfd=epoll_create1(0);
+         
+        if (epfd < 0) {
+               die("epoll create");
+        }
+        struct epoll_event ev;
+        ev.data.fd=fd;
+        ev.events=0;
+        epev.push_back(ev);
         for(Conn* conn:fd2conn){
             if(!conn)
                 continue;
-            struct pollfd pfd={};
-            pfd.fd=conn->fd;
-            pfd.events = POLLERR|((conn->state == STATE_REQ) ? POLLIN:POLLOUT);
-            pollargs.push_back(pfd);        
+            struct epoll_event ev; 
+            ev.data.fd=conn->fd;
+            ev.events = EPOLLERR|((conn->state == STATE_REQ) ? EPOLLIN:EPOLLOUT);
+            int evfd=epoll_ctl(epfd, EPOLL_CTL_ADD,conn->fd, &ev);
+            if(evfd<0)
+                die("epoll");
+            epev.push_back(ev);        
         }
+        int rv=epoll_wait(epfd,epev.data(),(nfds_t)epev.size(), 1000);
+        //int rv = poll(pollargs.data(),(nfds_t)pollargs.size(),1000);
         
-        int rv = poll(pollargs.data(),(nfds_t)pollargs.size(),1000);
         if(rv<0)
-            die("poll");
-        for(size_t i=1;i<pollargs.size();i++){
-            if(pollargs[i].revents){
-                Conn* conn=fd2conn[pollargs[i].fd];
+            die("epoll wait");
+        for(size_t i=1;i<epev.size();i++){
+            if(epev[i].events){
+                Conn* conn=fd2conn[epev[i].data.fd];
                 connection_io(conn);
                 if(conn->state ==STATE_END){
                     fd2conn[conn->fd] =NULL;
@@ -239,7 +249,7 @@ int main(int argc, char const *argv[])
                 }
             }
         }
-        if(pollargs[0].revents){
+        if(epev[0].events==EPOLLET){
             (void)accept_new_conn(fd2conn,fd);
         }
         
