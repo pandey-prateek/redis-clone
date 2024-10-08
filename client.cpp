@@ -70,12 +70,8 @@ int main(int argc, char const *argv[])
     if(rv)
         die("connect");
     std::vector<std::string> cmd;
-    int n;
-    std::cin>>n;
-    for(int i=1;i<=n;i++){
-        std::string s;
-        std::cin>>s;
-        cmd.push_back(s);
+    for (int i = 1; i < argc; ++i) {
+        cmd.push_back(argv[i]);
     }
     int32_t err= send_req(fd,cmd);
     if (err) {

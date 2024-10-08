@@ -175,6 +175,7 @@ static int32_t do_request(const uint8_t* req,uint32_t reqlen,uint32_t* rescode,u
     }
     if(cmd.size()==2 && cmd_is(cmd[0],"get")){
         *rescode = do_get(cmd,res,reslen);
+
     }else if(cmd.size() == 3 && cmd_is(cmd[0],"set")){
         *rescode = do_set(cmd,res,reslen);
     }else if(cmd.size()==2 && cmd_is(cmd[0],"del")){
@@ -208,7 +209,10 @@ static bool try_one_request(Conn* conn){
         conn->state = STATE_END;
         return false;
     }
-    wlen+=4;
+    wlen += 4;
+    memcpy(&conn->wbuf[0], &wlen, 4);
+    memcpy(&conn->wbuf[4], &rescode, 4);
+    conn->wbuf_size = 4 + wlen;
     size_t remain =conn->rbuf_size - 4 - len;
     
     if(remain){
